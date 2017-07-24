@@ -27,6 +27,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import hashlib
+import random
+import sys
+
 v = 1868033
 #v = 0b111001000000100000001
 u = pow(v, 3)
@@ -37,8 +41,14 @@ u = pow(v, 3)
 p = (((u + 1)*6*u + 4)*u + 1)*6*u + 1
 order = (p - 1) + (6*u*u + 1)
 
+def is_py3():
+    return (sys.version_info[0] == 3)
+
 def is_integer_type(x):
-    return type(x) in [int,long]
+    if is_py3():
+        return type(x) in [int]
+    else:
+        return type(x) in [int,long]
 
 def inverse_mod(a, n):
     t = 0
@@ -56,6 +66,22 @@ def inverse_mod(a, n):
     if t < 0:
         t += n
     return t
+
+def sqrt_mod_p(a):
+    assert p % 4 == 3
+    return pow(a, (p+1)//4, p)
+
+def inv_mod_p(a):
+    # Fermat
+    return pow(a, p-2, p)
+
+def legendre(a):
+    x = pow(a, (p-1)//2, p)
+    if x == 0 or x == 1:
+        return x
+    if x == p-1:
+        return -1
+    assert False
 
 # Montgomery params
 R = pow(2,256)
@@ -75,6 +101,9 @@ def to_naf(x):
             z.append(zi)
         x = x // 2
     return z
+
+# 6u+2 in NAF
+naf_6up2 = list(reversed(to_naf(6*u+2)))[1:]
 
 def bits_of(k):
     return [int(c) for c in "{0:b}".format(k)]
@@ -145,7 +174,7 @@ class gfp_1(object):
 
     def inverse(self):
         # Fermat
-        x = gfp_1(self._redc(R3 * pow(self.v, p-2, p)), False)
+        x = gfp_1(self._redc(R3 * inv_mod_p(self.v), False))
         #assert (self * x).value() == 1
         return x
 
@@ -222,7 +251,9 @@ def point_add(a, b):
     return a.__class__(c_x, c_y, c_z)
 
 def point_double(a):
+    # http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
     """
+   
     compute A = X1^2
         compute B = Y1^2
         compute C = B^2
@@ -280,7 +311,7 @@ def point_scalar_mul(pt, k):
 curve_B = gfp_1(3)
 
 class curve_point(object):
-    def __init__(self, x, y, z):
+    def __init__(self, x, y, z = gfp_1(1)):
         assert type(x) in [gfp_1]
         assert type(y) in [gfp_1]
         assert type(z) in [gfp_1]
@@ -318,7 +349,7 @@ class curve_point(object):
         return point_scalar_mul(self, k)
 
 # Any point (1,y) where y is a square root of b+1 is a generator
-curve_G = curve_point(gfp_1(1), gfp_1(p-2), gfp_1(1))
+curve_G = curve_point(gfp_1(1), gfp_1(p-2))
 
 assert curve_G.is_on_curve()
 
@@ -918,10 +949,7 @@ def miller(q, p):
 
     Qp = Q.y.square()
 
-    # 6u+2 in NAF
-    naf = list(reversed(to_naf(6*u+2)))[1:]
-
-    for naf_i in naf:
+    for naf_i in naf_6up2:
         # Skip on first iteration?
         f = f.square()
 
@@ -1029,7 +1057,6 @@ def g1_scalar_base_mult(k):
     return curve_G.scalar_mul(k)
 
 def g1_random():
-    import random
     k = random.randrange(2, order)
     return k, g1_scalar_base_mult(k)
 
@@ -1046,11 +1073,83 @@ def g1_marshall(a):
 def g1_unmarshall(x,y):
     return curve_point(x, y)
 
+def g1_hash_to_point(msg):
+    # From "Indifferentiable Hashing to Barreto-Naehrig Curves"
+    # https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf
+
+    # constants
+    sqrt_neg_3 = sqrt_mod_p(p-3)
+    inv_2 = inv_mod_p(2)
+    b = curve_B.value()
+
+    # compute t in F_q
+    sha = hashlib.sha512()
+    sha.update(msg)
+    t = int(sha.hexdigest(), 16) % p
+
+    if t == 0:
+        # TODO handle this case as described in paper
+        assert False
+
+    t2 = (t*t) % p
+
+    chi_t = legendre(t)
+
+    w = sqrt_neg_3 * t * inv_mod_p(1 + b + t2)
+
+    def g(x):
+        return (x*x*x + b) % p
+
+    x1 = ((sqrt_neg_3 - 1) * inv_2 - t*w) % p
+    g_x1 = g(x1)
+    if legendre(g_x1) == 1:
+        x1_sqrt = sqrt_mod_p(g_x1)
+        return curve_point(gfp_1(x1),
+                           gfp_1(chi_t * x1_sqrt))
+
+    x2 = (-1 - x1) % p
+    g_x2 = g(x2)
+
+    if legendre(g_x2) == 1:
+        x2_sqrt = sqrt_mod_p(g_x2)
+        return curve_point(gfp_1(x2),
+                           gfp_1(chi_t * x2_sqrt))
+
+    x3 = 1 + inv_mod_p(w*w)
+    g_x3 = g(x3)
+
+    assert legendre(g_x3) == 1
+    x3_sqrt = sqrt_mod_p(g_x3)
+    return curve_point(gfp_1(x3),
+                       gfp_1(chi_t * x3_sqrt))
+
+def g1_compress(g1):
+    g1.force_affine()
+    x = g1.x.value()
+    y = g1.y.value()
+
+    return (x, y & 1)
+
+def g1_uncompress(g):
+    x = g[0]
+    y_sign = g[1]
+
+    assert y_sign == 0 or y_sign == 1
+    assert x >= 0 and x < p
+
+    xxx = (x*x*x + curve_B.value()) % p
+
+    y = sqrt_mod_p(xxx)
+
+    if y_sign != y & 1:
+        y = p - y
+
+    return curve_point(gfp_1(x), gfp_1(y))
+
 def g2_scalar_base_mult(k):
     return twist_G.scalar_mul(k)
 
 def g2_random():
-    import random
     k = random.randrange(2, order)
     return k, g2_scalar_base_mult(k)
 
@@ -1089,8 +1188,7 @@ def gt_unmarshall(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11):
         gfp_6(gfp_2(p6,p7), gfp_2(p8,p9), gfp_2(p10,p11)))
 
 def gt_hash(gt):
-    import hashlib
-    sha = hashlib.sha256()
+    sha = hashlib.sha512()
 
     for parts in gt_marshall(gt):
         parts = parts.to_bytes()

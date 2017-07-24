@@ -19,13 +19,23 @@ may have superior performance at this security level.
 
 Also, being Python this code is not particularly fast :) nor obviously
 does it provide meaningful side channel protections. So you probably
-do not want to use it for anything at all ever.
+do not want to use it for anything at all ever. It is primarily
+intended for learning, and as a prototype for an implementation of the
+same curve in C++ or Rust.
 
 Enjoy!
 
+Implemented:
+ - [X] Optimal ate pairing over a 256-bit BN curve
+ - [X] Point compression for G1
+ - [X] Hashing to G1 (https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf)
+ - [X] Example: BLS signature scheme
+
 TODO:
- [ ] Extend to support larger prime fields (eg BN-448)
- [ ] Support hashing onto G1 (https://eprint.iacr.org/2014/043.pdf)
+ - [ ] Extend to support larger prime fields (eg BN-448)
+ - [ ] Elligator hashing onto G1 (https://eprint.iacr.org/2014/043.pdf)
+ - [ ] Point compression for G2
+ - [ ] Example: Boneh-Franklin IBE
 
 Some useful papers that I referenced in writing this code
 
