@@ -174,7 +174,7 @@ class gfp_1(object):
 
     def inverse(self):
         # Fermat
-        x = gfp_1(self._redc(R3 * inv_mod_p(self.v), False))
+        x = gfp_1(self._redc(R3 * inv_mod_p(self.v)), False)
         #assert (self * x).value() == 1
         return x
 
