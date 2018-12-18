@@ -39,7 +39,7 @@ u = pow(v, 3)
 #order = 36*pow(u,4) + 36*pow(u,3) + 18*pow(u,2) + 6*u + 1
 
 p = (((u + 1)*6*u + 4)*u + 1)*6*u + 1
-order = (p - 1) + (6*u*u + 1)
+order = p - 6*u*u
 
 def is_py3():
     return (sys.version_info[0] == 3)
