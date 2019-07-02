@@ -93,9 +93,9 @@ def rand_elem():
     """ Debiased random element generator """
     while True:
         rand_bytes = os.urandom(rand_elem_bytes)
-        rand_num = int.from_bytes(rand_bytes, 'little')
+        rand_num = int.from_bytes(rand_bytes, sys.byteorder)
         res = rand_num % rand_elem_range
-        if (rand_num - res) < rand_elem_barrier:
+        if (rand_num - res) <= rand_elem_barrier:
             return res + rand_elem_base
 
 # Montgomery params
