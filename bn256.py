@@ -28,8 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import hashlib
-import random
 import sys
+import os
 
 v = 1868033
 #v = 0b111001000000100000001
@@ -82,6 +82,21 @@ def legendre(a):
     if x == p-1:
         return -1
     assert False
+
+# Takes larger random range to minimize ratio of unusable numbers
+rand_elem_bytes = (order.bit_length() + 7) // 8 + 1
+rand_elem_base = 2
+rand_elem_range = order - rand_elem_base
+rand_elem_barrier = (1 << (8 * rand_elem_bytes)) - rand_elem_range
+
+def rand_elem():
+    """ Debiased random element generator """
+    while True:
+        rand_bytes = os.urandom(rand_elem_bytes)
+        rand_num = int.from_bytes(rand_bytes, sys.byteorder)
+        res = rand_num % rand_elem_range
+        if (rand_num - res) <= rand_elem_barrier:
+            return res + rand_elem_base
 
 # Montgomery params
 R = pow(2,256)
@@ -1057,7 +1072,7 @@ def g1_scalar_base_mult(k):
     return curve_G.scalar_mul(k)
 
 def g1_random():
-    k = random.randrange(2, order)
+    k = rand_elem()
     return k, g1_scalar_base_mult(k)
 
 def g1_add(a, b):
@@ -1150,7 +1165,7 @@ def g2_scalar_base_mult(k):
     return twist_G.scalar_mul(k)
 
 def g2_random():
-    k = random.randrange(2, order)
+    k = rand_elem()
     return k, g2_scalar_base_mult(k)
 
 def g2_add(a, b):
