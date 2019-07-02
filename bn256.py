@@ -1160,7 +1160,11 @@ def g2_marshall(a):
     return (a.x.x, a.x.y, a.y.x, a.y.y)
 
 def g2_unmarshall(w,x,y,z):
-    return curve_twist(w,x,y,z)
+    if w == x == y == z == 0:
+        # This is the point at infinity.
+        return curve_twist(gfp_2(0, 0), gfp_2(0, 1), gfp_2(0, 0))
+    else:
+        return curve_twist(gfp_2(w, x), gfp_2(y, z), gfp_2(0, 1))
 
 def gt_scalar_mult(x, k):
     return x.exp(k)
