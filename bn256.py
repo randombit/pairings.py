@@ -304,6 +304,9 @@ def point_force_affine(point):
     if point.z.is_one():
         return
 
+    if point.z.is_zero():
+        return
+
     zinv = point.z.inverse()
     zinv2 = (zinv * zinv)
     zinv3 = (zinv2 * zinv)
@@ -314,6 +317,9 @@ def point_force_affine(point):
 
 def point_scalar_mul(pt, k):
     assert is_integer_type(k)
+
+    if int(k) == 0:
+        return pt.__class__(pt.one_element(), pt.one_element(), pt.zero_element())
 
     R = [pt.__class__(pt.zero_element(), pt.zero_element(), pt.zero_element()),
          pt]
