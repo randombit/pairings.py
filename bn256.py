@@ -1172,6 +1172,7 @@ def g2_add(a, b):
     return a.add(b)
 
 def g2_marshall(a):
+    a.force_affine()
     return (a.x.x, a.x.y, a.y.x, a.y.y)
 
 def g2_unmarshall(w,x,y,z):
