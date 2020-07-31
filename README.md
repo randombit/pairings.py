@@ -31,6 +31,7 @@ Implemented:
  - [X] Hashing to G1 (https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf)
  - [X] Example: BLS signature scheme
  - [X] Example: Tripartite key exchange
+ - [X] Example: Boneh-Boyen-Goh Hierarchical Identity Based Encryption
 
 TODO:
  - [ ] Extend to support larger prime fields (eg BN-448)
